@@ -159,7 +159,7 @@ export class User {
   }
 
   EscapedName(): string {
-    return this.firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
   FullCurrentLeague(): League {
@@ -168,7 +168,7 @@ export class User {
     l.points_per_tap = this.CurrentLevelPointsPerTap();
     return l;
   }
-  
+
   FullNextLeague(): League | null {
     if (this.league + 1 < Leagues.length) {
       const nextLeagueUser = new User();

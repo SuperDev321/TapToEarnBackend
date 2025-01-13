@@ -18,11 +18,15 @@ export function newUserResponse(user: User): Record<string, any> {
     max_energy_level: user.maxEnergyLevel,
     mine_level: user.mineLevel,
     auto_farmer: user.autoFarmer,
-    auto_farmer_profit: user.autoFarmerProfit ? Number(user.autoFarmerProfit) : 0,
+    auto_farmer_profit: user.autoFarmerProfit
+      ? Number(user.autoFarmerProfit)
+      : 0,
     access_token: user.webAppAccessToken,
     access_token_expires_at: user.webAppAccessTokenExpiresAt,
     premium_expires_at: user.premiumExpiresAt,
-    is_premium: Boolean(user.premiumExpiresAt && user.premiumExpiresAt > new Date()),
+    is_premium: Boolean(
+      user.premiumExpiresAt && user.premiumExpiresAt > new Date()
+    ),
     last_mine_at: user.lastMineAt,
     daily_booster_available_at: user.dailyBoosterAvailableAt,
     daily_bonus_streak: user.dailyBonusStreak,
@@ -30,7 +34,7 @@ export function newUserResponse(user: User): Record<string, any> {
     next_league: user.FullNextLeague(), // Assuming you have this method
     current_league: user.league,
     total_leagues: Leagues.length, // Assuming you calculate this in your application
-    profit_per_hour: user.autoFarmerProfit ? Number(user.autoFarmerProfit): 0,
+    profit_per_hour: user.autoFarmerProfit ? Number(user.autoFarmerProfit) : 0,
     earn_per_tap: user.CurrentEarnPerTap(), // Assuming you have this method
     last_auto_farm_at: String(user.lastAutoFarmAt),
     latest_profit: Number(user.latestProfit),
@@ -39,7 +43,9 @@ export function newUserResponse(user: User): Record<string, any> {
 
 async function getUser(opts: any): Promise<User | null> {
   // Try to find the user
-  let user = await AppDataSource.manager.findOne(User, { where: { id: opts.tgUser.id } });
+  let user = await AppDataSource.manager.findOne(User, {
+    where: { id: opts.tgUser.id },
+  });
 
   if (user) {
     // Update user properties if necessary
@@ -53,7 +59,10 @@ async function getUser(opts: any): Promise<User | null> {
     if (opts.tgUser.username !== user.username) {
       mustUpdate.username = opts.tgUser.username;
     }
-    if (opts.tgUser.languageCode && opts.tgUser.languageCode !== user.languageCode) {
+    if (
+      opts.tgUser.languageCode &&
+      opts.tgUser.languageCode !== user.languageCode
+    ) {
       mustUpdate.languageCode = opts.tgUser.languageCode;
     }
     if (opts.tgUser.isPremium !== user.hasTelegramPremium) {
@@ -83,73 +92,90 @@ async function getUser(opts: any): Promise<User | null> {
   return user;
 }
 
-const maxProfitHours = 3
+const maxProfitHours = 3;
 
 export const getUserByAccessToken = async (accessToken) => {
-    const userRepository = AppDataSource.getRepository(User);
+  const userRepository = AppDataSource.getRepository(User);
 
-    const user = await userRepository.findOne({ where: { webAppAccessToken: accessToken } });
-    if (!user) {
-        throw new Error('User not found');
-    }
+  const user = await userRepository.findOne({
+    where: { webAppAccessToken: accessToken },
+  });
+  if (!user) {
+    throw new Error("User not found");
+  }
 
-    await processAutoFarmer(user);
+  await processAutoFarmer(user);
 
-    return user;
+  return user;
 };
 
 const processAutoFarmer = async (user: User) => {
-    // Assuming you have some logic to calculate the AutoFarmerProfit
-    user.autoFarmerProfit = await calculateFarmingProfit(user);
+  // Assuming you have some logic to calculate the AutoFarmerProfit
+  user.autoFarmerProfit = await calculateFarmingProfit(user);
 
-    const hoursFromLastMining = user.lastAutoFarmAt ? Math.min(
+  const hoursFromLastMining = user.lastAutoFarmAt
+    ? Math.min(
         (Date.now() - user.lastAutoFarmAt.getTime()) / (1000 * 60 * 60),
         maxProfitHours
-      ) : 0;
+      )
+    : 0;
 
-    const mined = user.autoFarmerProfit * hoursFromLastMining;
+  const mined = user.autoFarmerProfit * hoursFromLastMining;
 
-    const secondsFromLastEnergy = user.lastEnergyAt ? (Date.now() - user.lastEnergyAt.getTime()) / 1000 : 0;
-    const newEnergy = Math.max(0, user.energy - EnergyTopUpPower * secondsFromLastEnergy);
+  const secondsFromLastEnergy = user.lastEnergyAt
+    ? (Date.now() - user.lastEnergyAt.getTime()) / 1000
+    : 0;
+  const newEnergy = Math.max(
+    0,
+    user.energy - EnergyTopUpPower * secondsFromLastEnergy
+  );
 
-    const mustUpdate: any = {
-        energy: newEnergy,
-        lastEnergyAt: new Date(),
-    };
+  const mustUpdate: any = {
+    energy: newEnergy,
+    lastEnergyAt: new Date(),
+  };
 
-    if (mined > 0) {
-        mustUpdate.balance = user.balance + mined;
-        mustUpdate.lastAutoFarmAt = new Date();
-        mustUpdate.latestProfit = user.latestProfit + mined;
-        user.lastAutoFarmAt = new Date();
-        user.latestProfit += mined;
-        user.balance += mined;
-    }
+  if (mined > 0) {
+    mustUpdate.balance = user.balance + mined;
+    mustUpdate.lastAutoFarmAt = new Date();
+    mustUpdate.latestProfit = user.latestProfit + mined;
+    user.lastAutoFarmAt = new Date();
+    user.latestProfit += mined;
+    user.balance += mined;
+  }
 
-    const nextLeagueID = await getNextLeague(user.balance + mined, user.league);
-    if (user.league !== nextLeagueID && nextLeagueID !== 0) {
-        mustUpdate.league = nextLeagueID - 1;
-        user.league = nextLeagueID - 1;
-    }
+  const nextLeagueID = await getNextLeague(user.balance + mined, user.league);
+  if (user.league !== nextLeagueID && nextLeagueID !== 0) {
+    mustUpdate.league = nextLeagueID - 1;
+    user.league = nextLeagueID - 1;
+  }
 
-    await AppDataSource.getRepository(User).update(user.id, mustUpdate);
+  await AppDataSource.getRepository(User).update(user.id, mustUpdate);
 
-    user.lastEnergyAt = new Date();
-    user.energy = newEnergy;
+  user.lastEnergyAt = new Date();
+  user.energy = newEnergy;
 };
 
 const calculateFarmingProfit = async (user: User): Promise<number> => {
-    const result = await AppDataSource.getRepository(CardLevel)
-        .createQueryBuilder('cardLevels')
-        .select('SUM(cardLevels.totalFarming)', 'profit')
-        .innerJoin(UserCard, 'uc', 'uc.cardId = cardLevels.cardId AND uc.levelId = cardLevels.id AND uc.userId = :userId', { userId: user.id })
-        .getRawOne();
+  const result = await AppDataSource.getRepository(CardLevel)
+    .createQueryBuilder("cardLevels")
+    .select("SUM(cardLevels.totalFarming)", "profit")
+    .innerJoin(
+      UserCard,
+      "uc",
+      "uc.cardId = cardLevels.cardId AND uc.levelId = cardLevels.id AND uc.userId = :userId",
+      { userId: user.id }
+    )
+    .getRawOne();
 
-    return result ? parseInt(result.profit, 10) : 0;
+  return result ? parseInt(result.profit, 10) : 0;
 };
 
 export async function getNextLeague(balance: number, currentLeague: number) {
-  const nextLeague = Leagues.find((league) => balance >= league.must_reach_balance && league.id > currentLeague);
+  const nextLeague = Leagues.find(
+    (league) =>
+      balance >= league.must_reach_balance && league.id > currentLeague
+  );
   return nextLeague ? nextLeague.id : 0;
 }
 
@@ -232,10 +258,14 @@ export async function authorizeByWebApp(user) {
     };
 
     // Update user in the database
-    await AppDataSource.getRepository(User)
-      .update({ id: Equal(user.id) }, mustUpdate as any);
+    await AppDataSource.getRepository(User).update(
+      { id: Equal(user.id) },
+      mustUpdate as any
+    );
 
-    const _user = await AppDataSource.getRepository(User).findOneBy({ id: user.ID });
+    const _user = await AppDataSource.getRepository(User).findOneBy({
+      id: user.ID,
+    });
 
     return newUserResponse(_user);
 

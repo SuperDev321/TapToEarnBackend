@@ -45,7 +45,6 @@ const authorize = async (req: Request, res: Response) => {
     }
 
     // Return the authorized user details
-    
   } catch (err) {
     console.error("Unexpected Error:", err);
     return res
@@ -55,15 +54,15 @@ const authorize = async (req: Request, res: Response) => {
 };
 
 const getMe = async (req: Request, res: Response) => {
-    try {
-        const user = (req as any).user;
-        const userResonse = newUserResponse(user)
-        return res.json({ success: true, ...userResonse });
-    } catch (err) {
-        return res
-            .status(500)
-            .json({ success: false, message: "Internal Server Error" });
-    }
+  try {
+    const user = (req as any).user;
+    const userResonse = newUserResponse(user);
+    return res.json({ success: true, ...userResonse });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal Server Error" });
+  }
 };
 
 export { authorize, getMe };
