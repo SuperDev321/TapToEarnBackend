@@ -11,6 +11,7 @@ const authorize = async (req: Request, res: Response) => {
 
     // Parse the body as URLSearchParams
     const params = new URLSearchParams(Object.entries(body));
+    console.log('here', params)
 
     // Extract the hash and validate it
     const hash = params.get("hash");
@@ -23,7 +24,7 @@ const authorize = async (req: Request, res: Response) => {
 
     // Convert the remaining params into a plain object
     const data = {} as any;
-    for (const [key, value] of params.entries() as any) {
+    for (const [key, value] of params.entries()) {
       data[key] = value;
     }
 
@@ -37,15 +38,18 @@ const authorize = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: err.message });
     }
 
+    console.log('authUser', authUser)
+
     // Authorize user using a mock service
     try {
-      await authorizeByWebApp(authUser);
+      const user = await authorizeByWebApp(authUser);
+      return res.json({ success: true, ...user });
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message });
     }
 
     // Return the authorized user details
-    return res.json({ success: true, user: authUser });
+    
   } catch (err) {
     console.error("Unexpected Error:", err);
     return res
@@ -53,4 +57,5 @@ const authorize = async (req: Request, res: Response) => {
       .json({ success: false, message: "Internal Server Error" });
   }
 };
+
 export { authorize };

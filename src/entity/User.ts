@@ -6,6 +6,8 @@ import {
   OneToMany,
 } from "typeorm";
 import { UserCard } from "./UserCard";
+import { League } from "./League";
+import { Leagues } from "../constants/user";
 
 @Entity("users")
 export class User {
@@ -21,7 +23,7 @@ export class User {
   @Column({ type: "boolean", default: false })
   hasTelegramPremium: boolean;
 
-  @Column({ type: "varchar", length: 50 })
+  @Column({ type: "varchar", length: 50, default: "user" })
   role: string; // Use an enum if you have a defined set of roles
 
   @Column({ type: "varchar", nullable: true })
@@ -66,13 +68,13 @@ export class User {
   @Column({ type: "decimal", precision: 20, scale: 5, default: 0 })
   referralProfitUsd: string;
 
-  @Column({ type: "varchar", length: 10 })
+  @Column({ type: "varchar", length: 10, default: "en" })
   languageCode: string;
 
   @Column({ type: "boolean", default: false })
   autoFarmer: boolean;
 
-  @Column({ type: "bigint", nullable: true })
+  @Column({ type: "bigint", default: 0 })
   autoFarmerProfit: number | null; // Transient column, not stored in DB
 
   @Column({ type: "decimal", precision: 20, scale: 5, default: 0 })
@@ -126,4 +128,54 @@ export class User {
 
   @OneToMany(() => UserCard, (userCard) => userCard.user)
   userCards: UserCard[];
+
+  MaxEnergyBoost(): number {
+    // +500 energy per level
+    return this.maxEnergyLevel * 500;
+  }
+
+  MaxEnergyUpgradePrice(): number {
+    return Math.pow(2, this.maxEnergyLevel + 10);
+  }
+
+  CurrentLevelMaxEnergy(): number {
+    return (this.league + 1) * 500;
+  }
+
+  CurrentMaxEnergy(): number {
+    return this.CurrentLevelMaxEnergy() + this.MaxEnergyBoost();
+  }
+
+  CurrentAvailableEnergy(): number {
+    return this.CurrentMaxEnergy() - this.energy;
+  }
+
+  CurrentEarnPerTap(): number {
+    return this.CurrentLevelPointsPerTap() + this.mineLevel;
+  }
+
+  CurrentLevelPointsPerTap(): number {
+    return this.league + 1;
+  }
+
+  EscapedName(): string {
+    return this.firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  FullCurrentLeague(): League {
+    const l = Leagues[this.league];
+    l.max_energy = this.CurrentLevelMaxEnergy();
+    l.points_per_tap = this.CurrentLevelPointsPerTap();
+    return l;
+  }
+  
+  FullNextLeague(): League | null {
+    if (this.league + 1 < Leagues.length) {
+      const nextLeagueUser = new User();
+      nextLeagueUser.league = this.league + 1;
+      const l = nextLeagueUser.FullCurrentLeague();
+      return l;
+    }
+    return null;
+  }
 }
