@@ -10,6 +10,8 @@
       "outDir": "./build",
       "emitDecoratorMetadata": true,
       "experimentalDecorators": true,
-      "sourceMap": true
+      "sourceMap": true,
+      "typeRoots": ["./node_modules/@types", "./index.d.ts"],
+      "types": ["node", "express"]
    }
 }

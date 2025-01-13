@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
   authorizeByWebApp,
+  newUserResponse,
   validateAndExtractTelegramUserData,
 } from "../service/user";
 import { BotToken } from "../constants";
@@ -11,7 +12,6 @@ const authorize = async (req: Request, res: Response) => {
 
     // Parse the body as URLSearchParams
     const params = new URLSearchParams(Object.entries(body));
-    console.log('here', params)
 
     // Extract the hash and validate it
     const hash = params.get("hash");
@@ -28,8 +28,6 @@ const authorize = async (req: Request, res: Response) => {
       data[key] = value;
     }
 
-    console.log("Received Data:", data);
-
     // Validate and extract Telegram user data
     let authUser;
     try {
@@ -37,8 +35,6 @@ const authorize = async (req: Request, res: Response) => {
     } catch (err) {
       return res.status(400).json({ success: false, message: err.message });
     }
-
-    console.log('authUser', authUser)
 
     // Authorize user using a mock service
     try {
@@ -58,4 +54,16 @@ const authorize = async (req: Request, res: Response) => {
   }
 };
 
-export { authorize };
+const getMe = async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        const userResonse = newUserResponse(user)
+        return res.json({ success: true, ...userResonse });
+    } catch (err) {
+        return res
+            .status(500)
+            .json({ success: false, message: "Internal Server Error" });
+    }
+};
+
+export { authorize, getMe };

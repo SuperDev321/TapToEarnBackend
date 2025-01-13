@@ -1,5 +1,8 @@
 import { League } from "../entity/League";
 
+export const MaxBoosterLevel = 30;
+export const EnergyTopUpPower = 3;
+
 export const Leagues: League[] = [
     {
         id: 1, must_reach_balance: 0, name: "Normie", reward: 0, points_per_tap: 1, max_energy: 10,

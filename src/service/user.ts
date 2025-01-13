@@ -6,9 +6,7 @@ import { User } from "../entity/User";
 import { generateRandomHex } from "../utils/generateRandomHex";
 import { TelegramUser } from "../types/user";
 import { Equal } from "typeorm";
-import { Leagues } from "../constants/user";
-
-const { getRepository } = require("typeorm");
+import { EnergyTopUpPower, Leagues } from "../constants/user";
 
 export function newUserResponse(user: User): Record<string, any> {
   return {
@@ -20,7 +18,7 @@ export function newUserResponse(user: User): Record<string, any> {
     max_energy_level: user.maxEnergyLevel,
     mine_level: user.mineLevel,
     auto_farmer: user.autoFarmer,
-    auto_farmer_profit: Number(user.autoFarmerProfit),
+    auto_farmer_profit: user.autoFarmerProfit ? Number(user.autoFarmerProfit) : 0,
     access_token: user.webAppAccessToken,
     access_token_expires_at: user.webAppAccessTokenExpiresAt,
     premium_expires_at: user.premiumExpiresAt,
@@ -32,7 +30,7 @@ export function newUserResponse(user: User): Record<string, any> {
     next_league: user.FullNextLeague(), // Assuming you have this method
     current_league: user.league,
     total_leagues: Leagues.length, // Assuming you calculate this in your application
-    profit_per_hour: Number(user.autoFarmerProfit),
+    profit_per_hour: user.autoFarmerProfit ? Number(user.autoFarmerProfit): 0,
     earn_per_tap: user.CurrentEarnPerTap(), // Assuming you have this method
     last_auto_farm_at: String(user.lastAutoFarmAt),
     latest_profit: Number(user.latestProfit),
@@ -85,6 +83,76 @@ async function getUser(opts: any): Promise<User | null> {
   return user;
 }
 
+const maxProfitHours = 3
+
+export const getUserByAccessToken = async (accessToken) => {
+    const userRepository = AppDataSource.getRepository(User);
+
+    const user = await userRepository.findOne({ where: { webAppAccessToken: accessToken } });
+    if (!user) {
+        throw new Error('User not found');
+    }
+
+    await processAutoFarmer(user);
+
+    return user;
+};
+
+const processAutoFarmer = async (user: User) => {
+    // Assuming you have some logic to calculate the AutoFarmerProfit
+    user.autoFarmerProfit = await calculateFarmingProfit(user);
+
+    const hoursFromLastMining = user.lastAutoFarmAt ? Math.min(
+        (Date.now() - user.lastAutoFarmAt.getTime()) / (1000 * 60 * 60),
+        maxProfitHours
+      ) : 0;
+
+    const mined = user.autoFarmerProfit * hoursFromLastMining;
+
+    const secondsFromLastEnergy = user.lastEnergyAt ? (Date.now() - user.lastEnergyAt.getTime()) / 1000 : 0;
+    const newEnergy = Math.max(0, user.energy - EnergyTopUpPower * secondsFromLastEnergy);
+
+    const mustUpdate: any = {
+        energy: newEnergy,
+        lastEnergyAt: new Date(),
+    };
+
+    if (mined > 0) {
+        mustUpdate.balance = user.balance + mined;
+        mustUpdate.lastAutoFarmAt = new Date();
+        mustUpdate.latestProfit = user.latestProfit + mined;
+        user.lastAutoFarmAt = new Date();
+        user.latestProfit += mined;
+        user.balance += mined;
+    }
+
+    const nextLeagueID = await getNextLeague(user.balance + mined, user.league);
+    if (user.league !== nextLeagueID && nextLeagueID !== 0) {
+        mustUpdate.league = nextLeagueID - 1;
+        user.league = nextLeagueID - 1;
+    }
+
+    await AppDataSource.getRepository(User).update(user.id, mustUpdate);
+
+    user.lastEnergyAt = new Date();
+    user.energy = newEnergy;
+};
+
+const calculateFarmingProfit = async (user: User): Promise<number> => {
+    const result = await AppDataSource.getRepository(CardLevel)
+        .createQueryBuilder('cardLevels')
+        .select('SUM(cardLevels.totalFarming)', 'profit')
+        .innerJoin(UserCard, 'uc', 'uc.cardId = cardLevels.cardId AND uc.levelId = cardLevels.id AND uc.userId = :userId', { userId: user.id })
+        .getRawOne();
+
+    return result ? parseInt(result.profit, 10) : 0;
+};
+
+export async function getNextLeague(balance: number, currentLeague: number) {
+  const nextLeague = Leagues.find((league) => balance >= league.must_reach_balance && league.id > currentLeague);
+  return nextLeague ? nextLeague.id : 0;
+}
+
 /**
  * Calculates the total farming profit for a user based on their cards.
  * @param {Object} user - The user object containing the user ID.
@@ -92,7 +160,7 @@ async function getUser(opts: any): Promise<User | null> {
  */
 export async function getFarmingProfit(user: TelegramUser) {
   try {
-    const result = await getRepository(CardLevel)
+    const result = await AppDataSource.getRepository(CardLevel)
       .createQueryBuilder("card_levels")
       .select("SUM(card_levels.total_farming)", "profit")
       .innerJoin(
@@ -107,7 +175,6 @@ export async function getFarmingProfit(user: TelegramUser) {
 
     return result.profit ? parseInt(result.profit, 10) : 0;
   } catch (err) {
-    console.error("Error fetching farming profit:", err.message);
     throw new Error(`Failed to calculate farming profit: ${err.message}`);
   }
 }
@@ -165,8 +232,7 @@ export async function authorizeByWebApp(user) {
     };
 
     // Update user in the database
-    await AppDataSource.manager
-      .getRepository(User)
+    await AppDataSource.getRepository(User)
       .update({ id: Equal(user.id) }, mustUpdate as any);
 
     const _user = await AppDataSource.getRepository(User).findOneBy({ id: user.ID });
