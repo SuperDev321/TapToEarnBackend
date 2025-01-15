@@ -6,7 +6,15 @@ import { User } from "../entity/User";
 import { generateRandomHex } from "../utils/generateRandomHex";
 import { TelegramUser } from "../types/user";
 import { Equal } from "typeorm";
-import { EnergyTopUpPower, Leagues } from "../constants/user";
+import {
+  EnergyTopUpPower,
+  FriendReward,
+  Leagues,
+  PremiumFriendReward,
+} from "../constants/user";
+import { Friend } from "../entity/Friend";
+import { Promo } from "../entity/Promo";
+import { Context } from "telegraf";
 
 export function newUserResponse(user: User): Record<string, any> {
   return {
@@ -41,7 +49,20 @@ export function newUserResponse(user: User): Record<string, any> {
   };
 }
 
-async function getUser(opts: any): Promise<User | null> {
+export async function updateUserAvatar(
+  user: User,
+  avatarURL: string
+): Promise<void> {}
+
+export function getUserFromContext(ctx: Context): User {
+  const user = ctx.state.user as User;
+  if (!user) {
+    throw new Error("no user in context");
+  }
+  return user;
+}
+
+export async function getUser(opts: any): Promise<User> {
   // Try to find the user
   let user = await AppDataSource.manager.findOne(User, {
     where: { id: opts.tgUser.id },
@@ -53,20 +74,23 @@ async function getUser(opts: any): Promise<User | null> {
     if (opts.IsPrivate && user.stoppedAt) {
       mustUpdate.stoppedAt = null;
     }
-    if (opts.tgUser.firstName !== user.firstName) {
-      mustUpdate.firstName = opts.tgUser.firstName;
+    if (opts.tgUser.first_name && opts.tgUser.first_name !== user.firstName) {
+      mustUpdate.firstName = opts.tgUser.first_name;
     }
-    if (opts.tgUser.username !== user.username) {
+    if (opts.tgUser.username && opts.tgUser.username !== user.username) {
       mustUpdate.username = opts.tgUser.username;
     }
     if (
-      opts.tgUser.languageCode &&
-      opts.tgUser.languageCode !== user.languageCode
+      opts.tgUser.language_code &&
+      opts.tgUser.language_code !== user.languageCode
     ) {
-      mustUpdate.languageCode = opts.tgUser.languageCode;
+      mustUpdate.languageCode = opts.tgUser.language_code;
     }
-    if (opts.tgUser.isPremium !== user.hasTelegramPremium) {
-      mustUpdate.hasTelegramPremium = opts.tgUser.isPremium;
+    if (
+      opts.tgUser.is_premium &&
+      opts.tgUser.is_premium !== user.hasTelegramPremium
+    ) {
+      mustUpdate.hasTelegramPremium = opts.tgUser.is_premium;
     }
 
     // Update user if there are changes
@@ -77,18 +101,69 @@ async function getUser(opts: any): Promise<User | null> {
     return user;
   }
 
-  // Create a new user if not found
-  user = AppDataSource.manager.create(User, {
-    id: opts.tgUser.id,
-    firstName: opts.tgUser.firstName,
-    username: opts.tgUser.username,
-    languageCode: opts.tgUser.languageCode,
-    hasTelegramPremium: opts.tgUser.isPremium,
-  });
+  user = new User();
 
+  user.id = opts.tgUser.id;
+  user.firstName = opts.tgUser.first_name;
+  user.username = opts.tgUser.username;
+  user.languageCode = opts.tgUser.language_code;
+  user.hasTelegramPremium = opts.tgUser.is_premium;
+
+  let friendReward: Friend | null = null;
+
+  if (opts.promo) {
+    if ((opts.promo as string).startsWith("r_")) {
+      const referrerId = parseInt((opts.promo as string).slice(2), 10);
+      const referrer = await AppDataSource.manager.findOne(User, {
+        where: { id: Equal(referrerId) },
+      });
+      if (referrer) {
+        user.refererId = referrerId;
+        const reward = opts.tgUser.is_premium
+          ? PremiumFriendReward
+          : FriendReward;
+
+        friendReward = new Friend();
+        friendReward.userId = referrer.id;
+        friendReward.friendId = opts.tgUser.id;
+        friendReward.reward = reward;
+
+        const newBalance = Number(referrer.balance) + Number(reward);
+
+        const nextLeagueID = await getNextLeague(newBalance, referrer.league);
+        referrer.referralProfit = reward;
+        referrer.balance = newBalance;
+
+        if (referrer.league !== nextLeagueID - 1 && nextLeagueID !== 0) {
+          referrer.league = nextLeagueID - 1;
+        }
+        await AppDataSource.manager.save(referrer);
+        user.balance = reward;
+
+        const nextLeagueIDOfUser = await getNextLeague(reward, user.league);
+
+        if (
+          user.league !== nextLeagueIDOfUser - 1 &&
+          nextLeagueIDOfUser !== 0
+        ) {
+          user.league = nextLeagueIDOfUser - 1;
+        }
+      } else {
+        const promo = await AppDataSource.getRepository(Promo).findOneBy({
+          name: Equal(opts.promo),
+        });
+        if (promo) {
+          user.promoId = promo?.id ?? null;
+          user.balance = promo.charge;
+        }
+      }
+    }
+  }
   // Save new user
-  await AppDataSource.manager.save(user);
-
+  user = await AppDataSource.manager.save(user);
+  if (friendReward) {
+    await AppDataSource.manager.save(friendReward);
+  }
   return user;
 }
 
@@ -142,7 +217,7 @@ const processAutoFarmer = async (user: User) => {
   }
 
   const nextLeagueID = await getNextLeague(user.balance + mined, user.league);
-  if (user.league !== nextLeagueID && nextLeagueID !== 0) {
+  if (user.league !== nextLeagueID - 1 && nextLeagueID !== 0) {
     user.league = nextLeagueID - 1;
   }
 

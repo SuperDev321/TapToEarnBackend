@@ -6,6 +6,7 @@ import { getLeagues } from "../controller/league";
 import { fetchBoosts, updateBoosts } from "../controller/boosts";
 import { fetchCards, purchaseCard } from "../controller/card";
 import { claimDailyBonus, fetchDailyBonuses } from "../controller/dailyBonus";
+import { fetchFriends } from "../controller/friend";
 
 const router = Router();
 
@@ -25,5 +26,7 @@ router.post("/cards", userMiddleware, purchaseCard);
 
 router.get("/getDailyBonuses", userMiddleware, fetchDailyBonuses);
 router.post("/pickDailyBonus", userMiddleware, claimDailyBonus);
+
+router.get("/friends", userMiddleware, fetchFriends);
 
 export default router;

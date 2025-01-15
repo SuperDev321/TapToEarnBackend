@@ -100,7 +100,7 @@ export const pickDailyBonus = async (user: User) => {
     throw new Error("No daily bonus found");
   }
 
-  const newtBalance = user.balance + bonus.reward;
+  const newtBalance = Number(user.balance) + Number(bonus.reward);
 
   user.balance = newtBalance;
   user.dailyBonusStreak = bonus.id;

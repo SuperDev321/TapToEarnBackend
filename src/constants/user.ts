@@ -2,6 +2,8 @@ import { League } from "../entity/League";
 
 export const MaxBoosterLevel = 30;
 export const EnergyTopUpPower = 3;
+export const FriendReward = 10000;
+export const PremiumFriendReward = 25000;
 
 export const Leagues: League[] = [
   {

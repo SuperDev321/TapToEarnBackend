@@ -10,10 +10,10 @@ import { User } from "./User"; // Assuming User is another entity
 
 @Entity()
 export class Friend {
-  @PrimaryColumn()
+  @PrimaryColumn({ type: "bigint", unsigned: true })
   userId!: number;
 
-  @PrimaryColumn()
+  @PrimaryColumn({ type: "bigint", unsigned: true })
   friendId!: number;
 
   @ManyToOne(() => User)

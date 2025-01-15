@@ -8,6 +8,7 @@ import {
 import { UserCard } from "./UserCard";
 import { League } from "./League";
 import { Leagues } from "../constants/user";
+import { Friend } from "./Friend";
 
 @Entity("users")
 export class User {
@@ -128,6 +129,9 @@ export class User {
 
   @OneToMany(() => UserCard, (userCard) => userCard.user)
   userCards!: UserCard[];
+
+  @OneToMany(() => Friend, (friend) => friend.friend)
+  friends!: Friend[];
 
   MaxEnergyBoost(): number {
     // +500 energy per level
