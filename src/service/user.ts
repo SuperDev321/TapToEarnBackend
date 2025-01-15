@@ -486,7 +486,17 @@ const getUserLeaderboardPosition = async (
     limit,
     offset,
   ]);
-  return users;
+
+  const userScores = users.map((_user: any) => {
+    return {
+      ..._user,
+      avatar_key: _user.avatar_url ?? "",
+      score: Number(_user.profit),
+      id: Number(_user.id),
+      position: Number(_user.position),
+    };
+  });
+  return userScores;
 };
 
 export const getLeaderboard = async (
