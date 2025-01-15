@@ -12,7 +12,7 @@ export const userMiddleware = async (
     if (!accessToken) {
       next(new Error("missing x-api-key header"));
     } else {
-      const user = await getUserByAccessToken(accessToken);
+      const user = await getUserByAccessToken(accessToken as string);
 
       if (!user) {
         next(new Error("invalid x-api-key header"));

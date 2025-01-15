@@ -1,7 +1,7 @@
 export type TelegramUser = {
-  ID: number;
-  Username: any;
-  FirstName: any;
-  AvatarURL: any;
-  HasTelegramPremium: boolean;
+  id: number;
+  username: any;
+  firstName: any;
+  avatarURL: any;
+  hasTelegramPremium: boolean;
 };

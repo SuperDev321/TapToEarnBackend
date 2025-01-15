@@ -2,20 +2,20 @@ import { Entity, PrimaryColumn, Column, ManyToOne } from "typeorm";
 import { User } from "./User"; // Assuming User is the related entity
 import { Card } from "./Card"; // Assuming Card is the related entity
 
-@Entity()
+@Entity("user_cards")
 export class UserCard {
-  @PrimaryColumn()
-  userId: number;
+  @PrimaryColumn({ type: "bigint", unsigned: true })
+  userId!: number;
 
   @PrimaryColumn()
-  cardId: number;
+  cardId!: number;
 
   @Column({ default: 1 })
-  levelId: number;
+  levelId!: number;
 
   @ManyToOne(() => User, (user) => user.userCards)
-  user: User;
+  user!: User;
 
   @ManyToOne(() => Card, (card) => card.userCards)
-  card: Card;
+  card!: Card;
 }

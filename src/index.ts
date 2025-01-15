@@ -1,13 +1,14 @@
 import "reflect-metadata";
 import "dotenv/config";
-import * as express from "express";
-import * as cors from "cors";
+import express from "express";
+import cors from "cors";
 import { Telegraf } from "telegraf";
 import { AppDataSource } from "./data-source";
 import { startBot } from "./handler/start";
 import router from "./router";
+import { AddDailyCard } from "./cron/card";
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.BOT_TOKEN ?? "");
 const app = express();
 app.use(express.json());
 app.use(
@@ -35,6 +36,8 @@ AppDataSource.initialize()
     app.listen(Number(process.env.PORT) | 5000, () => {
       console.log(`Server is running on ${process.env.PORT}`);
     });
+
+    // AddDailyCard();
   })
   .catch((error) => {
     console.error("Error during Data Source initialization:", error);

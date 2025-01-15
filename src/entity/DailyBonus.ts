@@ -3,13 +3,13 @@ import { Entity, PrimaryGeneratedColumn, Column } from "typeorm";
 @Entity()
 export class DailyBonus {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  reward: number;
+  reward!: number;
 
   // Fields that are not persisted in the database can be marked with @Column({ select: false }) or excluded entirely.
-  claimed: boolean;
+  claimed!: boolean;
 
-  current: boolean;
+  current!: boolean;
 }

@@ -4,37 +4,37 @@ import { QuestType } from "../constants/channel";
 @Entity()
 export class Channel {
   @PrimaryColumn()
-  id: number;
+  id!: number;
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column()
-  inviteLink: string;
+  inviteLink!: string;
 
   @Column({ default: 0 })
-  balance: number;
+  balance!: number;
 
   @Column({ default: 1000 })
-  reward: number;
+  reward!: number;
 
   @Column({ default: false })
   @Index()
-  activated: boolean;
+  activated!: boolean;
 
   @Column({
     type: "enum",
     enum: QuestType,
     default: QuestType.Telegram,
   })
-  questType: QuestType;
+  questType!: QuestType;
 
   @Column({ default: false })
-  isHighlighted: boolean;
+  isHighlighted!: boolean;
 
   @Column()
-  languageCode: string;
+  languageCode!: string;
 
   @Column({ type: "timestamp", nullable: true })
-  stoppedAt: Date | null;
+  stoppedAt!: Date | null;
 }

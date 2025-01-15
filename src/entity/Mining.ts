@@ -4,37 +4,37 @@ import { User } from "./User"; // Assuming User is another entity
 @Entity()
 export class MiningPerDay {
   @PrimaryColumn({ type: "date" })
-  date: Date;
+  date!: Date;
 
-  @PrimaryColumn()
-  userId: number;
+  @PrimaryColumn({ type: "bigint", unsigned: true })
+  userId!: number;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: "userId" }) // Specify the foreign key
-  user: User;
+  @JoinColumn({ name: "user_id" }) // Specify the foreign key
+  user!: User;
 
   @Column()
-  league: number;
+  league!: number;
 
   @Column()
-  mined: number;
+  mined!: number;
 }
 
 @Entity()
 export class MiningPerMonth {
   @PrimaryColumn({ type: "date" })
-  date: Date;
+  date!: Date;
 
-  @PrimaryColumn()
-  userId: number;
+  @PrimaryColumn({ type: "bigint", unsigned: true })
+  userId!: number;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: "userId" }) // Specify the foreign key
-  user: User;
+  @JoinColumn({ name: "user_id" }) // Specify the foreign key
+  user!: User;
 
   @Column()
-  league: number;
+  league!: number;
 
   @Column()
-  mined: number;
+  mined!: number;
 }

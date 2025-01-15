@@ -8,36 +8,36 @@ import {
 import { CardLevel } from "./CardLevel"; // Assuming CardLevel is another entity
 import { UserCard } from "./UserCard";
 
-@Entity()
+@Entity("cards")
 @Index("IDX_NAME", ["name"], { unique: true })
 export class Card {
   @PrimaryGeneratedColumn("increment")
-  id: number;
+  id!: number;
 
   @Column({ unique: true })
-  name: string;
+  name!: string;
 
   @Column({ type: "bytea", nullable: true })
-  logoFileBytes: Buffer;
+  logoFileBytes!: Buffer;
 
   @Column({ type: "bytea", nullable: true })
-  levelsFileBytes: Buffer;
+  levelsFileBytes!: Buffer;
 
   @Column({ nullable: true })
-  logoS3Key: string;
+  logoS3Key!: string;
 
   @OneToMany(() => CardLevel, (cardLevel) => cardLevel.card)
-  cardLevels: CardLevel[];
+  cardLevels!: CardLevel[];
 
   @OneToMany(() => UserCard, (cardLevel) => cardLevel.card)
-  userCards: UserCard[];
+  userCards!: UserCard[];
 
   @Column()
-  createdAt: Date;
+  createdAt!: Date;
 
   @Column()
-  category: string;
+  category!: string;
 
   @Column()
-  description: string;
+  description!: string;
 }

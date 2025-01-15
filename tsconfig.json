@@ -1,17 +1,19 @@
 {
-   "compilerOptions": {
-      "lib": [
-         "es5",
-         "es6"
-      ],
-      "target": "es2015",
-      "module": "commonjs",
-      "moduleResolution": "node",
-      "outDir": "./build",
-      "emitDecoratorMetadata": true,
-      "experimentalDecorators": true,
-      "sourceMap": true,
-      "typeRoots": ["./node_modules/@types", "./index.d.ts"],
-      "types": ["node", "express"]
-   }
+  "compilerOptions": {
+    "lib": ["es6"], // "es6" includes "es5" automatically
+    "target": "es2015",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "./build",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "sourceMap": true,
+    "typeRoots": ["./node_modules/@types", "./src/types"], // Ensure custom types folder is included
+    "types": ["node", "express"], // Include node and express types explicitly
+    "strict": true, // Enable strict type checking
+    "esModuleInterop": true, // Allows default imports from CommonJS modules
+    "skipLibCheck": true // Skips type checks of declaration files
+  },
+  "include": ["src/**/*"], // Include all files in the src folder
+  "exclude": ["node_modules", "build"] // Exclude node_modules and build folder
 }

@@ -94,7 +94,7 @@ async function getUser(opts: any): Promise<User | null> {
 
 const maxProfitHours = 3;
 
-export const getUserByAccessToken = async (accessToken) => {
+export const getUserByAccessToken = async (accessToken: string) => {
   const userRepository = AppDataSource.getRepository(User);
 
   const user = await userRepository.findOne({
@@ -115,7 +115,9 @@ const processAutoFarmer = async (user: User) => {
 
   const hoursFromLastMining = user.lastAutoFarmAt
     ? Math.min(
-        (Date.now() - user.lastAutoFarmAt.getTime()) / (1000 * 60 * 60),
+        Math.floor(
+          (Date.now() - user.lastAutoFarmAt.getTime()) / (1000 * 60 * 60)
+        ),
         maxProfitHours
       )
     : 0;
@@ -123,37 +125,28 @@ const processAutoFarmer = async (user: User) => {
   const mined = user.autoFarmerProfit * hoursFromLastMining;
 
   const secondsFromLastEnergy = user.lastEnergyAt
-    ? (Date.now() - user.lastEnergyAt.getTime()) / 1000
+    ? Math.floor((Date.now() - user.lastEnergyAt.getTime()) / 1000)
     : 0;
   const newEnergy = Math.max(
     0,
     user.energy - EnergyTopUpPower * secondsFromLastEnergy
   );
 
-  const mustUpdate: any = {
-    energy: newEnergy,
-    lastEnergyAt: new Date(),
-  };
+  user.lastEnergyAt = new Date();
+  user.energy = newEnergy;
 
   if (mined > 0) {
-    mustUpdate.balance = user.balance + mined;
-    mustUpdate.lastAutoFarmAt = new Date();
-    mustUpdate.latestProfit = user.latestProfit + mined;
     user.lastAutoFarmAt = new Date();
-    user.latestProfit += mined;
+    user.latestProfit = (user.latestProfit ?? 0) + mined;
     user.balance += mined;
   }
 
   const nextLeagueID = await getNextLeague(user.balance + mined, user.league);
   if (user.league !== nextLeagueID && nextLeagueID !== 0) {
-    mustUpdate.league = nextLeagueID - 1;
     user.league = nextLeagueID - 1;
   }
 
-  await AppDataSource.getRepository(User).update(user.id, mustUpdate);
-
-  user.lastEnergyAt = new Date();
-  user.energy = newEnergy;
+  await AppDataSource.manager.save(user);
 };
 
 const calculateFarmingProfit = async (user: User): Promise<number> => {
@@ -168,7 +161,7 @@ const calculateFarmingProfit = async (user: User): Promise<number> => {
     )
     .getRawOne();
 
-  return result ? parseInt(result.profit, 10) : 0;
+  return result ? parseInt(result.profit ?? 0, 10) : 0;
 };
 
 export async function getNextLeague(balance: number, currentLeague: number) {
@@ -194,14 +187,18 @@ export async function getFarmingProfit(user: TelegramUser) {
         "uc",
         "uc.card_id = card_levels.card_id AND uc.level_id = card_levels.id AND uc.user_id = :userId",
         {
-          userId: user.ID,
+          userId: user.id,
         }
       )
       .getRawOne();
 
     return result.profit ? parseInt(result.profit, 10) : 0;
   } catch (err) {
-    throw new Error(`Failed to calculate farming profit: ${err.message}`);
+    if (err instanceof Error) {
+      throw new Error(`Failed to calculate farming profit: ${err.message}`);
+    } else {
+      throw new Error("Failed to calculate farming profit: Unknown error");
+    }
   }
 }
 /**
@@ -210,15 +207,34 @@ export async function getFarmingProfit(user: TelegramUser) {
  * @param {Object} services - Services required for authorization (e.g., DB, UserService).
  * @returns {Promise<void>} - Resolves on success, rejects on failure.
  */
-export async function authorizeByWebApp(user) {
+interface AuthorizeUserOptions {
+  tgUser: {
+    id: number;
+    firstName: string;
+    username?: string;
+    isPremium: boolean;
+  };
+  IsPrivate: boolean;
+}
+
+interface MustUpdate {
+  webAppAccessToken: string;
+  webAppAccessTokenExpiresAt: Date;
+  avatarUrl: string | null;
+  latestProfit: number;
+}
+
+export async function authorizeByWebApp(
+  user: TelegramUser
+): Promise<Record<string, any>> {
   try {
-    let avatarURL = null;
+    let avatarURL: string | null = null;
     if (user.avatarURL) {
       avatarURL = user.avatarURL;
     }
 
     // Get or create the user
-    const userOptions = {
+    const userOptions: AuthorizeUserOptions = {
       tgUser: {
         id: user.id,
         firstName: user.firstName,
@@ -228,29 +244,18 @@ export async function authorizeByWebApp(user) {
       IsPrivate: true,
     };
 
-    const fetchedUser = await getUser(userOptions);
+    const fetchedUser: User | null = await getUser(userOptions);
     if (!fetchedUser) {
       throw new Error("Failed to fetch user");
     }
 
-    // // Process the auto farmer logic
-    // try {
-    //   await processAutoFarmer(fetchedUser);
-    // } catch (err) {
-    //   throw new Error(`Process auto farmer: ${err.message}`);
-    // }
+    // Generate access token
+    const accessToken: string = await generateRandomHex(64);
 
-    // // Update user details
-    // Object.assign(user, fetchedUser);
-    // const latestProfit = fetchedUser.LatestProfit;
+    const lastAuthAt: Date = new Date();
+    const expiresAt: Date = new Date(lastAuthAt.getTime() + 60 * 60 * 1000); // 1 hour later
 
-    // // Generate access token
-    const accessToken = await generateRandomHex(64);
-
-    const lastAuthAt = new Date();
-    const expiresAt = new Date(lastAuthAt.getTime() + 60 * 60 * 1000); // 1 hour later
-
-    const mustUpdate = {
+    const mustUpdate: MustUpdate = {
       webAppAccessToken: accessToken,
       webAppAccessTokenExpiresAt: expiresAt,
       avatarUrl: avatarURL,
@@ -263,24 +268,27 @@ export async function authorizeByWebApp(user) {
       mustUpdate as any
     );
 
-    const _user = await AppDataSource.getRepository(User).findOneBy({
-      id: user.ID,
+    const _user: User | null = await AppDataSource.getRepository(
+      User
+    ).findOneBy({
+      id: user.id,
     });
 
-    return newUserResponse(_user);
+    if (!_user) {
+      throw new Error("User not found after update");
+    }
 
-    // Restore the latest profit
-    // user.LatestProfit = latestProfit;
+    return newUserResponse(_user);
   } catch (err) {
-    console.error("Error authorizing user:", err.message);
+    console.error("Error authorizing user:", (err as Error).message);
     throw err;
   }
 }
 
 export function validateAndExtractTelegramUserData(
-  authData,
-  secret,
-  signature
+  authData: Record<string, any>,
+  secret: string,
+  signature: string
 ) {
   // Create data check string
   const dataCheckArr = Object.keys(authData)
@@ -343,3 +351,103 @@ export function validateAndExtractTelegramUserData(
 
   return user;
 }
+
+const getUserLeaderboardPosition = async (
+  userId: number,
+  league: number,
+  limit: number,
+  offset: number
+) => {
+  const leaderboardQuery = `
+    WITH TotalFarmingByLeague AS (
+        SELECT 
+            SUM(total_farming) AS profit, 
+            user_cards.user_id, 
+            u.league
+        FROM 
+            user_cards
+        JOIN 
+            card_levels cl ON cl.card_id = user_cards.card_id AND cl.id = user_cards.level_id
+        JOIN 
+            users u ON user_cards.user_id = u.id
+        WHERE 
+            u.banned_at IS NULL
+        GROUP BY 
+            user_cards.user_id, u.league
+    ),
+    Leaderboard AS (
+        SELECT 
+            u.id,
+            tf.profit,
+            u.league,
+            u.username,
+            u.first_name,
+            u.avatar_url,
+            RANK() OVER (ORDER BY tf.profit DESC, u.username) AS position
+        FROM 
+            TotalFarmingByLeague tf
+        JOIN 
+            users u ON tf.user_id = u.id
+        WHERE 
+            ($1::smallint = 0 OR tf.league = $2)
+    )
+    SELECT 
+        *
+    FROM 
+        Leaderboard
+    WHERE 
+        ($3::bigint = 0 OR id = $4)
+    ORDER BY 
+        profit DESC
+    LIMIT 
+        $5 OFFSET $6;
+  `;
+
+  const users = await AppDataSource.manager.query(leaderboardQuery, [
+    league,
+    league,
+    userId,
+    userId,
+    limit,
+    offset,
+  ]);
+  return users;
+};
+
+export const getLeaderboard = async (
+  league: number,
+  user: User,
+  limit: number,
+  offset: number
+): Promise<{ players: User[]; me?: User }> => {
+  const users = await getUserLeaderboardPosition(0, league, limit, offset);
+
+  const result: { players: User[]; me?: User } = { players: users };
+
+  if (league !== user.league && league !== 0) {
+    return result;
+  }
+
+  let me: User | undefined;
+  for (const u of users) {
+    if (u.id === user.id) {
+      me = u;
+      break;
+    }
+  }
+
+  if (!me) {
+    const userPosition = await getUserLeaderboardPosition(
+      user.id,
+      league,
+      1,
+      0
+    );
+    if (userPosition.length > 0) {
+      me = userPosition[0];
+    }
+  }
+
+  result.me = me;
+  return result;
+};

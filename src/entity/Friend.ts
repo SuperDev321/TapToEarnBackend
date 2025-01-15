@@ -11,18 +11,18 @@ import { User } from "./User"; // Assuming User is another entity
 @Entity()
 export class Friend {
   @PrimaryColumn()
-  userId: number;
+  userId!: number;
 
   @PrimaryColumn()
-  friendId: number;
+  friendId!: number;
 
   @ManyToOne(() => User)
-  @JoinColumn({ name: "friendId" }) // Specify the foreign key
-  friend: User;
+  @JoinColumn({ name: "friend_id" }) // Specify the foreign key
+  friend!: User;
 
   @Column()
-  reward: number;
+  reward!: number;
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
-  createdAt: Date;
+  createdAt!: Date;
 }

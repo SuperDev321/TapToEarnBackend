@@ -8,20 +8,20 @@ import {
 @Entity()
 export class Promo {
   @PrimaryGeneratedColumn()
-  id: number;
+  id!: number;
 
   @Column({ unique: true })
-  name: string;
+  name!: string;
 
   @Column()
-  price: number;
+  price!: number;
 
   @Column()
-  charge: number;
+  charge!: number;
 
   @Column({ default: 0 })
-  premiumMinutes: number;
+  premiumMinutes!: number;
 
   @CreateDateColumn({ type: "timestamp" })
-  createdAt: Date;
+  createdAt!: Date;
 }

@@ -1,23 +1,32 @@
-import { Entity, PrimaryColumn, Column, ManyToOne } from "typeorm";
+import {
+  Entity,
+  PrimaryColumn,
+  Column,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Card } from "./Card"; // Assuming Card is the related entity
 
-@Entity()
+@Entity("card_levels")
 export class CardLevel {
-  @PrimaryColumn()
-  id: number;
+  @PrimaryGeneratedColumn()
+  id!: number;
 
   @PrimaryColumn()
-  cardId: number;
+  cardId!: number;
+
+  @Column()
+  level!: number;
 
   @Column({ type: "numeric" })
-  cost: string;
+  cost!: string;
 
   @Column()
-  farmingUpgrade: number;
+  farmingUpgrade!: number;
 
   @Column()
-  totalFarming: number;
+  totalFarming!: number;
 
   @ManyToOne(() => Card, (card) => card.cardLevels)
-  card: Card;
+  card!: Card;
 }

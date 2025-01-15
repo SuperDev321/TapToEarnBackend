@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import {
   authorizeByWebApp,
+  getLeaderboard,
   newUserResponse,
   validateAndExtractTelegramUserData,
 } from "../service/user";
 import { BotToken } from "../constants";
+import { User } from "../entity/User";
 
 const authorize = async (req: Request, res: Response) => {
   try {
@@ -16,9 +18,8 @@ const authorize = async (req: Request, res: Response) => {
     // Extract the hash and validate it
     const hash = params.get("hash");
     if (!hash) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Hash is required" });
+      res.status(400).json({ success: false, message: "Hash is required" });
+      return;
     }
     params.delete("hash");
 
@@ -33,36 +34,56 @@ const authorize = async (req: Request, res: Response) => {
     try {
       authUser = validateAndExtractTelegramUserData(data, BotToken, hash);
     } catch (err) {
-      return res.status(400).json({ success: false, message: err.message });
+      res.status(400).json({ success: false, message: (err as Error).message });
+      return;
     }
 
     // Authorize user using a mock service
     try {
       const user = await authorizeByWebApp(authUser);
-      return res.json({ success: true, ...user });
+      res.json({ success: true, ...user });
     } catch (err) {
-      return res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: (err as Error).message });
     }
 
-    // Return the authorized user details
+    // the authorized user details
   } catch (err) {
     console.error("Unexpected Error:", err);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
 const getMe = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const userResonse = newUserResponse(user);
-    return res.json({ success: true, ...userResonse });
+    if (user) {
+      const userResonse = newUserResponse(user);
+      res.json({ success: true, ...userResonse });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
   } catch (err) {
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal Server Error" });
+    res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 };
 
-export { authorize, getMe };
+const fetchLeaderboard = async (req: Request, res: Response) => {
+  try {
+    // Get the leaderboard
+    const level = parseInt(req.query.level as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    const user = (req as any).user as User;
+
+    // Mock leaderboard data
+    const leaderboard = await getLeaderboard(level, user, limit, offset); // Replace with actual leaderboard fetching logic
+
+    res.json({ success: true, ...leaderboard });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
+
+export { authorize, getMe, fetchLeaderboard };

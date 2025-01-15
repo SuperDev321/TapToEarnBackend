@@ -7,6 +7,7 @@ import { UserCard } from "./entity/UserCard";
 import { DailyBonus } from "./entity/DailyBonus";
 import { Friend } from "./entity/Friend";
 import { MiningPerDay, MiningPerMonth } from "./entity/Mining";
+import { SnakeNamingStrategy } from "typeorm-naming-strategies";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -29,4 +30,5 @@ export const AppDataSource = new DataSource({
   ],
   migrations: [],
   subscribers: [],
+  namingStrategy: new SnakeNamingStrategy(),
 });

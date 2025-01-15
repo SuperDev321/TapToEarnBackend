@@ -5,7 +5,7 @@ import * as crypto from "crypto";
  * @param {number} length - Length of the hex string.
  * @returns {Promise<string>} - Random hex string.
  */
-export function generateRandomHex(length) {
+export function generateRandomHex(length: number): Promise<string> {
   return new Promise((resolve, reject) => {
     crypto.randomBytes(length / 2, (err, buffer) => {
       if (err) {

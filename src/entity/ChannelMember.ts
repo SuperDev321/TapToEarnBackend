@@ -9,17 +9,17 @@ import {
 @Entity()
 export class ChannelMember {
   @PrimaryColumn()
-  channelId: number;
+  channelId!: number;
 
   @PrimaryColumn()
-  userId: number;
+  userId!: number;
 
   @Column()
-  status: string;
+  status!: string;
 
   @UpdateDateColumn({ type: "timestamp" })
-  updatedAt: Date;
+  updatedAt!: Date;
 
   @CreateDateColumn({ type: "timestamp" })
-  createdAt: Date;
+  createdAt!: Date;
 }

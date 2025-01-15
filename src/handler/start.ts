@@ -7,9 +7,9 @@ export const startBot = (ctx: Context) => {
       inline_keyboard: [
         [
           {
-            text: startMenuText["en"],
+            text: "Start",
             web_app: {
-              url: "https://sacred-divine-baboon.ngrok-free.app", // Your frontend URL
+              url: process.env.FRONTEND_URL ?? "", // Your frontend URL
             },
           },
         ],
@@ -18,5 +18,5 @@ export const startBot = (ctx: Context) => {
   };
 
   // Send the message with the inline button
-  ctx.sendMessage("Tap to start playing the game!", inlineKeyboard);
+  ctx.sendMessage(startMenuText["en"], inlineKeyboard);
 };
